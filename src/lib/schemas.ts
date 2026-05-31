@@ -16,16 +16,16 @@ export const projectSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   manager_id: z.string().uuid().nullable().optional(),
   due_date: z.string().optional().nullable(),
-  status: z.enum(["active", "on_hold", "completed", "archived"]).default("active"),
+  status: z.enum(["active", "on_hold", "completed", "archived"]),
 });
 
 export const taskSchema = z.object({
   title: z.string().trim().min(1, "Requis").max(200),
   description: z.string().trim().max(2000).optional(),
-  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
   assignee_id: z.string().uuid().nullable().optional(),
   due_date: z.string().optional().nullable(),
-  status: z.enum(["todo", "in_progress", "done"]).default("todo"),
+  status: z.enum(["todo", "in_progress", "done"]),
 });
 
 export type SignInInput = z.infer<typeof signInSchema>;
