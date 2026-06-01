@@ -10,7 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, ListChecks, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, ListChecks, GripVertical, Wifi, WifiOff, CloudUpload } from "lucide-react";
+import {
+  cacheGet,
+  cacheSet,
+  enqueue,
+  useFlushQueue,
+  useOnlineStatus,
+  useQueueSize,
+  type QueuedMutation,
+} from "@/lib/offline-queue";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { taskSchema, type TaskInput } from "@/lib/schemas";
