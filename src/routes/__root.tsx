@@ -13,6 +13,7 @@ import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider, useTheme } from "@/lib/theme-context";
 
 function NotFoundComponent() {
   return (
@@ -88,10 +89,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // No-flash: read stored theme before hydration
+  const noFlashScript = `(function(){try{var t=localStorage.getItem('pulse-theme');if(!t){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}var r=document.documentElement;r.classList.toggle('dark',t==='dark');r.classList.toggle('light',t==='light');r.style.colorScheme=t;}catch(e){document.documentElement.classList.add('dark');}})();`;
   return (
     <html lang="fr" className="dark">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: noFlashScript }} />
       </head>
       <body>
         {children}
@@ -106,17 +110,23 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster
-          theme="dark"
-          position="top-right"
-          toastOptions={{
-            className: "glass-strong",
-            style: { background: "oklch(0.18 0.03 270 / 0.85)", border: "1px solid oklch(1 0 0 / 0.1)", color: "oklch(0.97 0.01 250)" },
-          }}
-        />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Outlet />
+          <ThemedToaster />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return (
+    <Toaster
+      theme={theme}
+      position="top-right"
+      toastOptions={{ className: "glass-strong" }}
+    />
   );
 }
