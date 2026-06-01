@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -86,9 +87,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <p className="text-xs text-muted-foreground capitalize">{role === "manager" ? "Responsable" : role === "admin" ? "Admin" : "Membre"}</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleLogout}>
-          <LogOut className="size-4" /> Déconnexion
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="flex-1 justify-start" onClick={handleLogout}>
+            <LogOut className="size-4" /> Déconnexion
+          </Button>
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   );
@@ -120,7 +124,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
           <span className="font-display font-bold gradient-text">Pulse</span>
-          <div className="size-9" />
+          <ThemeToggle />
         </header>
 
         <main className="flex-1 p-4 md:p-8 max-w-[1600px] w-full mx-auto">
