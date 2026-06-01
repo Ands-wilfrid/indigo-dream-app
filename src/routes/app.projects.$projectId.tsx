@@ -85,7 +85,7 @@ function ProjectDetail() {
 
   // Persist every cache update (including optimistic mutations) so the board
   // is fully usable on a cold reload while offline.
-  useMemo(() => {
+  useEffect(() => {
     if (tasks) cacheSet(tasksCacheKey, tasks);
   }, [tasks, tasksCacheKey]);
 
