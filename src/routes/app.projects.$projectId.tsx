@@ -131,7 +131,7 @@ function ProjectDetail() {
   }, [projectId]);
 
   // Refresh from server when connectivity is restored.
-  useMemo(() => {
+  useEffect(() => {
     if (online) qc.invalidateQueries({ queryKey: ["tasks", projectId] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online]);
