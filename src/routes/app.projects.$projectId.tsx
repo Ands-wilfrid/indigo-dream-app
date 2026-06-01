@@ -206,6 +206,31 @@ function ProjectDetail() {
   );
 }
 
+function SyncBadge({ online, queueSize }: { online: boolean; queueSize: number }) {
+  if (!online) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 text-warning px-3 py-1.5 text-xs font-medium border border-warning/30">
+        <WifiOff className="size-3.5" />
+        Hors ligne{queueSize > 0 ? ` · ${queueSize} en attente` : ""}
+      </span>
+    );
+  }
+  if (queueSize > 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 text-primary px-3 py-1.5 text-xs font-medium border border-primary/30 animate-pulse">
+        <CloudUpload className="size-3.5" />
+        Synchronisation… {queueSize}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 text-success px-3 py-1.5 text-xs font-medium border border-success/30">
+      <Wifi className="size-3.5" />
+      Synchronisé
+    </span>
+  );
+}
+
 function Column({ id, label, color, tasks }: { id: TaskStatus; label: string; color: string; tasks: any[] }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${id}` });
   return (
