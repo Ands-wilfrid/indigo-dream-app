@@ -10,12 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, ListChecks, GripVertical } from "lucide-react";
+import { ArrowLeft, Plus, ListChecks, GripVertical, Wifi, WifiOff, CloudUpload } from "lucide-react";
+import {
+  cacheGet,
+  cacheSet,
+  enqueue,
+  useFlushQueue,
+  useOnlineStatus,
+  useQueueSize,
+  type QueuedMutation,
+} from "@/lib/offline-queue";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { taskSchema, type TaskInput } from "@/lib/schemas";
 import { toast } from "sonner";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   closestCorners, type DragEndEvent, type DragStartEvent,
@@ -41,28 +50,44 @@ function ProjectDetail() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const canManage = role === "admin" || role === "manager";
+  const online = useOnlineStatus();
+  const queueSize = useQueueSize();
+
+  const projectCacheKey = `project:${projectId}`;
+  const tasksCacheKey = `tasks:${projectId}`;
 
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
+    initialData: () => cacheGet<any>(projectCacheKey) ?? undefined,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects").select("*, manager:profiles!projects_manager_id_fkey(full_name, email)")
         .eq("id", projectId).single();
       if (error) throw error;
+      cacheSet(projectCacheKey, data);
       return data;
     },
   });
 
   const { data: tasks } = useQuery({
     queryKey: ["tasks", projectId],
+    initialData: () => cacheGet<any[]>(tasksCacheKey) ?? undefined,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks").select("*, assignee:profiles!tasks_assignee_id_fkey(full_name, email)")
         .eq("project_id", projectId).order("position", { ascending: true });
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      cacheSet(tasksCacheKey, rows);
+      return rows;
     },
   });
+
+  // Persist every cache update (including optimistic mutations) so the board
+  // is fully usable on a cold reload while offline.
+  useEffect(() => {
+    if (tasks) cacheSet(tasksCacheKey, tasks);
+  }, [tasks, tasksCacheKey]);
 
   const moveTask = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
@@ -77,12 +102,39 @@ function ProjectDetail() {
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => {
+    onError: (_e, vars, ctx) => {
+      // If we're offline, keep the optimistic state and queue the change.
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        enqueue({ type: "move-task", payload: { taskId: vars.id, status: vars.status } });
+        toast.message("Hors ligne", { description: "La modification sera synchronisée au retour en ligne." });
+        return;
+      }
       if (ctx?.prev) qc.setQueryData(["tasks", projectId], ctx.prev);
       toast.error("Synchronisation échouée");
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["tasks", projectId] }),
+    onSettled: () => {
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+      }
+    },
   });
+
+  // Replay queued mutations whenever we come back online.
+  useFlushQueue(async (m: QueuedMutation) => {
+    if (m.type === "move-task") {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: m.payload.status })
+        .eq("id", m.payload.taskId);
+      if (error) throw error;
+    }
+  }, [projectId]);
+
+  // Refresh from server when connectivity is restored.
+  useEffect(() => {
+    if (online) qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -121,7 +173,10 @@ function ProjectDetail() {
           <h1 className="font-display text-3xl md:text-4xl font-bold">{project?.name ?? "…"}</h1>
           {project?.description && <p className="text-muted-foreground mt-2 max-w-2xl">{project.description}</p>}
         </div>
-        {canManage && project && <CreateTaskDialog projectId={projectId} userId={user!.id} />}
+        <div className="flex items-center gap-2">
+          <SyncBadge online={online} queueSize={queueSize} />
+          {canManage && project && <CreateTaskDialog projectId={projectId} userId={user!.id} />}
+        </div>
       </div>
 
       {tasks && tasks.length === 0 ? (
@@ -148,6 +203,31 @@ function ProjectDetail() {
         </DndContext>
       )}
     </div>
+  );
+}
+
+function SyncBadge({ online, queueSize }: { online: boolean; queueSize: number }) {
+  if (!online) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 text-warning px-3 py-1.5 text-xs font-medium border border-warning/30">
+        <WifiOff className="size-3.5" />
+        Hors ligne{queueSize > 0 ? ` · ${queueSize} en attente` : ""}
+      </span>
+    );
+  }
+  if (queueSize > 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 text-primary px-3 py-1.5 text-xs font-medium border border-primary/30 animate-pulse">
+        <CloudUpload className="size-3.5" />
+        Synchronisation… {queueSize}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 text-success px-3 py-1.5 text-xs font-medium border border-success/30">
+      <Wifi className="size-3.5" />
+      Synchronisé
+    </span>
   );
 }
 
