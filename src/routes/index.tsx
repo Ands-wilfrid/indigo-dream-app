@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles, FolderKanban, Users, Zap, ShieldCheck, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,6 +35,7 @@ function Landing() {
           <span className="font-display text-xl font-bold">Pulse</span>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link to="/login" className="text-sm hover:text-primary transition">Connexion</Link>
           <Link
             to="/signup"
