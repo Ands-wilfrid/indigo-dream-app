@@ -50,28 +50,44 @@ function ProjectDetail() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const canManage = role === "admin" || role === "manager";
+  const online = useOnlineStatus();
+  const queueSize = useQueueSize();
+
+  const projectCacheKey = `project:${projectId}`;
+  const tasksCacheKey = `tasks:${projectId}`;
 
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
+    initialData: () => cacheGet<any>(projectCacheKey) ?? undefined,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects").select("*, manager:profiles!projects_manager_id_fkey(full_name, email)")
         .eq("id", projectId).single();
       if (error) throw error;
+      cacheSet(projectCacheKey, data);
       return data;
     },
   });
 
   const { data: tasks } = useQuery({
     queryKey: ["tasks", projectId],
+    initialData: () => cacheGet<any[]>(tasksCacheKey) ?? undefined,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks").select("*, assignee:profiles!tasks_assignee_id_fkey(full_name, email)")
         .eq("project_id", projectId).order("position", { ascending: true });
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      cacheSet(tasksCacheKey, rows);
+      return rows;
     },
   });
+
+  // Persist every cache update (including optimistic mutations) so the board
+  // is fully usable on a cold reload while offline.
+  useMemo(() => {
+    if (tasks) cacheSet(tasksCacheKey, tasks);
+  }, [tasks, tasksCacheKey]);
 
   const moveTask = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
@@ -86,12 +102,39 @@ function ProjectDetail() {
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => {
+    onError: (_e, vars, ctx) => {
+      // If we're offline, keep the optimistic state and queue the change.
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        enqueue({ type: "move-task", payload: { taskId: vars.id, status: vars.status } });
+        toast.message("Hors ligne", { description: "La modification sera synchronisée au retour en ligne." });
+        return;
+      }
       if (ctx?.prev) qc.setQueryData(["tasks", projectId], ctx.prev);
       toast.error("Synchronisation échouée");
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["tasks", projectId] }),
+    onSettled: () => {
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+      }
+    },
   });
+
+  // Replay queued mutations whenever we come back online.
+  useFlushQueue(async (m: QueuedMutation) => {
+    if (m.type === "move-task") {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: m.payload.status })
+        .eq("id", m.payload.taskId);
+      if (error) throw error;
+    }
+  }, [projectId]);
+
+  // Refresh from server when connectivity is restored.
+  useMemo(() => {
+    if (online) qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
