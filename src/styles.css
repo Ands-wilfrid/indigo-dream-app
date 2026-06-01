@@ -60,7 +60,7 @@
   --animate-glow: glow 3s ease-in-out infinite;
 }
 
-/* Force dark mode always */
+/* Default = dark theme */
 :root,
 .dark {
   --radius: 0.75rem;
@@ -124,6 +124,87 @@
   --shadow-glass: 0 8px 32px 0 oklch(0 0 0 / 0.4);
   --shadow-glow: 0 0 40px oklch(0.65 0.22 270 / 0.35);
   --shadow-elevated: 0 20px 60px -10px oklch(0 0 0 / 0.5);
+
+  /* Theme-aware surface tints used by .glass / scrollbar */
+  --glass-bg: oklch(0.20 0.03 270 / 0.5);
+  --glass-bg-strong: oklch(0.18 0.03 270 / 0.75);
+  --glass-border: oklch(1 0 0 / 0.08);
+  --glass-border-strong: oklch(1 0 0 / 0.1);
+  --scrollbar-thumb: oklch(1 0 0 / 0.08);
+  --scrollbar-thumb-hover: oklch(1 0 0 / 0.15);
+  --selection-bg: oklch(0.65 0.22 270 / 0.4);
+  --selection-fg: oklch(0.98 0.005 250);
+}
+
+/* Light theme */
+.light {
+  --radius: 0.75rem;
+
+  --background: oklch(0.985 0.005 250);
+  --foreground: oklch(0.18 0.03 270);
+  --card: oklch(1 0 0 / 0.7);
+  --card-foreground: oklch(0.18 0.03 270);
+  --popover: oklch(0.99 0.003 250);
+  --popover-foreground: oklch(0.18 0.03 270);
+
+  --primary: oklch(0.55 0.22 270);
+  --primary-foreground: oklch(0.99 0.005 250);
+  --primary-glow: oklch(0.65 0.22 270);
+
+  --secondary: oklch(0.95 0.015 270 / 0.8);
+  --secondary-foreground: oklch(0.20 0.03 270);
+
+  --muted: oklch(0.95 0.012 260 / 0.7);
+  --muted-foreground: oklch(0.45 0.03 260);
+
+  --accent: oklch(0.62 0.16 210);
+  --accent-foreground: oklch(0.99 0.005 250);
+
+  --destructive: oklch(0.58 0.24 25);
+  --destructive-foreground: oklch(0.99 0.01 250);
+
+  --success: oklch(0.58 0.18 155);
+  --success-foreground: oklch(0.99 0.005 250);
+
+  --warning: oklch(0.70 0.17 75);
+  --warning-foreground: oklch(0.18 0.02 270);
+
+  --border: oklch(0.18 0.03 270 / 0.10);
+  --input: oklch(0.18 0.03 270 / 0.08);
+  --ring: oklch(0.55 0.22 270 / 0.5);
+
+  --chart-1: oklch(0.55 0.22 270);
+  --chart-2: oklch(0.62 0.16 210);
+  --chart-3: oklch(0.58 0.18 155);
+  --chart-4: oklch(0.70 0.17 75);
+  --chart-5: oklch(0.58 0.24 25);
+
+  --sidebar: oklch(1 0 0 / 0.75);
+  --sidebar-foreground: oklch(0.22 0.03 270);
+  --sidebar-primary: oklch(0.55 0.22 270);
+  --sidebar-primary-foreground: oklch(0.99 0.005 250);
+  --sidebar-accent: oklch(0.95 0.015 270 / 0.8);
+  --sidebar-accent-foreground: oklch(0.22 0.03 270);
+  --sidebar-border: oklch(0.18 0.03 270 / 0.08);
+  --sidebar-ring: oklch(0.55 0.22 270 / 0.4);
+
+  --gradient-primary: linear-gradient(135deg, oklch(0.55 0.22 270), oklch(0.62 0.16 210));
+  --gradient-mesh:
+    radial-gradient(at 20% 20%, oklch(0.65 0.22 270 / 0.18) 0px, transparent 50%),
+    radial-gradient(at 80% 10%, oklch(0.75 0.16 210 / 0.15) 0px, transparent 50%),
+    radial-gradient(at 60% 90%, oklch(0.72 0.18 155 / 0.10) 0px, transparent 50%);
+  --shadow-glass: 0 8px 32px 0 oklch(0.18 0.03 270 / 0.12);
+  --shadow-glow: 0 0 40px oklch(0.55 0.22 270 / 0.25);
+  --shadow-elevated: 0 20px 60px -10px oklch(0.18 0.03 270 / 0.18);
+
+  --glass-bg: oklch(1 0 0 / 0.6);
+  --glass-bg-strong: oklch(1 0 0 / 0.8);
+  --glass-border: oklch(0.18 0.03 270 / 0.08);
+  --glass-border-strong: oklch(0.18 0.03 270 / 0.12);
+  --scrollbar-thumb: oklch(0.18 0.03 270 / 0.15);
+  --scrollbar-thumb-hover: oklch(0.18 0.03 270 / 0.25);
+  --selection-bg: oklch(0.55 0.22 270 / 0.25);
+  --selection-fg: oklch(0.18 0.03 270);
 }
 
 @keyframes fade-in {
@@ -167,33 +248,33 @@
   }
 
   ::selection {
-    background-color: oklch(0.65 0.22 270 / 0.4);
-    color: oklch(0.98 0.005 250);
+    background-color: var(--selection-bg);
+    color: var(--selection-fg);
   }
 
   /* Custom scrollbar */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: oklch(1 0 0 / 0.08);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 0.15); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 }
 
 @layer components {
   .glass {
-    background: oklch(0.20 0.03 270 / 0.5);
+    background: var(--glass-bg);
     backdrop-filter: blur(20px) saturate(140%);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
-    border: 1px solid oklch(1 0 0 / 0.08);
+    border: 1px solid var(--glass-border);
   }
 
   .glass-strong {
-    background: oklch(0.18 0.03 270 / 0.75);
+    background: var(--glass-bg-strong);
     backdrop-filter: blur(28px) saturate(160%);
     -webkit-backdrop-filter: blur(28px) saturate(160%);
-    border: 1px solid oklch(1 0 0 / 0.1);
+    border: 1px solid var(--glass-border-strong);
   }
 
   .gradient-text {
