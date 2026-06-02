@@ -2,13 +2,13 @@ import { z } from "zod";
 
 export const signInSchema = z.object({
   email: z.string().trim().email("Email invalide").max(255),
-  password: z.string().min(6, "6 caractères minimum").max(72),
+  password: z.string().min(1, "Requis").max(72),
 });
 
 export const signUpSchema = z.object({
-  fullName: z.string().trim().min(2, "Nom trop court").max(100),
+  fullName: z.string().trim().min(1, "Requis").max(100),
   email: z.string().trim().email("Email invalide").max(255),
-  password: z.string().min(8, "8 caractères minimum").max(72),
+  password: z.string().min(1, "Requis").max(72),
 });
 
 export const projectSchema = z.object({
