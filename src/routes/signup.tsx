@@ -42,8 +42,18 @@ function SignupPage() {
       toast.error("Inscription impossible", { description: error.message });
       return;
     }
-    toast.success("Compte créé !", { description: "Vérifiez votre email pour confirmer." });
-    navigate({ to: "/login" });
+    // Auto-confirm is enabled — sign the user in immediately.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+    if (signInError) {
+      toast.success("Compte créé !", { description: "Connectez-vous." });
+      navigate({ to: "/login" });
+      return;
+    }
+    toast.success("Bienvenue !");
+    navigate({ to: "/app" });
   };
 
   return (
