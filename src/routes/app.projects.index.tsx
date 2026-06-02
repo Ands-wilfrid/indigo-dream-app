@@ -31,12 +31,23 @@ function ProjectsPage() {
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: projectRows, error } = await supabase
         .from("projects")
-        .select("*, manager:profiles!projects_manager_id_fkey(full_name, email)")
+        .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      const rows = projectRows ?? [];
+      const managerIds = [...new Set(rows.map((p) => p.manager_id).filter(Boolean))] as string[];
+
+      if (managerIds.length === 0) return rows.map((p) => ({ ...p, manager: null }));
+
+      const { data: managers } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", managerIds);
+
+      const managersById = new Map((managers ?? []).map((m) => [m.id, m]));
+      return rows.map((p) => ({ ...p, manager: p.manager_id ? managersById.get(p.manager_id) ?? null : null }));
     },
   });
 
