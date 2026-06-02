@@ -61,10 +61,18 @@ function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={FolderKanban} label="Projets" value={stats?.projects ?? 0} accent="primary" />
-        <StatCard icon={ListChecks} label="Mes tâches" value={stats?.myTasks ?? 0} accent="accent" />
-        <StatCard icon={Clock} label="En cours" value={stats?.inProgress ?? 0} accent="warning" />
-        <StatCard icon={CheckCircle2} label="Terminées" value={stats?.done ?? 0} accent="success" />
+        <Link to="/app/projects" className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <StatCard icon={FolderKanban} label="Projets" value={stats?.projects ?? 0} accent="primary" />
+        </Link>
+        <Link to="/app/my-tasks" className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <StatCard icon={ListChecks} label="Mes tâches" value={stats?.myTasks ?? 0} accent="accent" />
+        </Link>
+        <Link to="/app/my-tasks" search={{ status: "in_progress" }} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <StatCard icon={Clock} label="En cours" value={stats?.inProgress ?? 0} accent="warning" />
+        </Link>
+        <Link to="/app/my-tasks" search={{ status: "done" }} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <StatCard icon={CheckCircle2} label="Terminées" value={stats?.done ?? 0} accent="success" />
+        </Link>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

@@ -11,22 +11,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/my-tasks")({
+  validateSearch: (search) => {
+    const allowed = ["todo", "in_progress", "done"];
+    return { status: typeof search.status === "string" && allowed.includes(search.status) ? search.status : undefined };
+  },
   head: () => ({ meta: [{ title: "Mes tâches · Pulse" }] }),
   component: MyTasks,
 });
 
 function MyTasks() {
   const { user } = useAuth();
+  const { status } = Route.useSearch();
   const qc = useQueryClient();
 
   const { data: tasks, isLoading } = useQuery({
-    queryKey: ["my-tasks", user?.id],
+    queryKey: ["my-tasks", user?.id, status],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("tasks")
         .select("*, projects(id, name)")
-        .eq("assignee_id", user!.id)
-        .order("due_date", { ascending: true, nullsFirst: false });
+        .eq("assignee_id", user!.id);
+
+      if (status) query = query.eq("status", status);
+
+      const { data, error } = await query.order("due_date", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -49,7 +57,9 @@ function MyTasks() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="font-display text-3xl md:text-4xl font-bold">Mes tâches</h1>
-        <p className="text-sm text-muted-foreground mt-1">Toutes les tâches qui vous sont assignées.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {status === "in_progress" ? "Vos tâches en cours." : status === "done" ? "Vos tâches terminées." : "Toutes les tâches qui vous sont assignées."}
+        </p>
       </div>
 
       {isLoading ? (
