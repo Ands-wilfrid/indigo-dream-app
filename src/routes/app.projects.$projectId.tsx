@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, ListChecks, GripVertical, Wifi, WifiOff, CloudUpload } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Plus, ListChecks, GripVertical, Wifi, WifiOff, CloudUpload, Users, Calendar } from "lucide-react";
 import {
   cacheGet,
   cacheSet,
@@ -173,8 +174,9 @@ function ProjectDetail() {
           <h1 className="font-display text-3xl md:text-4xl font-bold">{project?.name ?? "…"}</h1>
           {project?.description && <p className="text-muted-foreground mt-2 max-w-2xl">{project.description}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <SyncBadge online={online} queueSize={queueSize} />
+          {canManage && project && <ManageMembersDialog projectId={projectId} />}
           {canManage && project && <CreateTaskDialog projectId={projectId} userId={user!.id} />}
         </div>
       </div>
@@ -269,6 +271,12 @@ function TaskCard({ task, dragging }: { task: any; dragging?: boolean }) {
                 {(task.assignee as any).full_name || (task.assignee as any).email}
               </span>
             )}
+            {task.due_date && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar className="size-3" />
+                {new Date(task.due_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -292,10 +300,23 @@ function CreateTaskDialog({ projectId, userId }: { projectId: string; userId: st
   const qc = useQueryClient();
 
   const { data: members } = useQuery({
-    queryKey: ["all-members"],
+    queryKey: ["project-assignable", projectId],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("id, full_name, email");
-      return data ?? [];
+      // Project manager
+      const { data: proj } = await supabase
+        .from("projects").select("manager_id").eq("id", projectId).single();
+      // Project members
+      const { data: pm } = await supabase
+        .from("project_members").select("user_id").eq("project_id", projectId);
+
+      const ids = new Set<string>();
+      if (proj?.manager_id) ids.add(proj.manager_id);
+      (pm ?? []).forEach((r) => ids.add(r.user_id));
+      if (ids.size === 0) return [];
+
+      const { data: profiles } = await supabase
+        .from("profiles").select("id, full_name, email").in("id", [...ids]);
+      return profiles ?? [];
     },
     enabled: open,
   });
@@ -381,6 +402,88 @@ function CreateTaskDialog({ projectId, userId }: { projectId: string; userId: st
             {mutation.isPending ? "Création…" : "Créer la tâche"}
           </Button>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ManageMembersDialog({ projectId }: { projectId: string }) {
+  const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
+
+  const { data: project } = useQuery({
+    queryKey: ["project-manager", projectId],
+    queryFn: async () => {
+      const { data } = await supabase.from("projects").select("manager_id").eq("id", projectId).single();
+      return data;
+    },
+    enabled: open,
+  });
+
+  const { data: people } = useQuery({
+    queryKey: ["all-profiles-for-members"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("id, full_name, email");
+      return data ?? [];
+    },
+    enabled: open,
+  });
+
+  const { data: currentMembers } = useQuery({
+    queryKey: ["project-members", projectId],
+    queryFn: async () => {
+      const { data } = await supabase.from("project_members").select("user_id").eq("project_id", projectId);
+      return new Set((data ?? []).map((r) => r.user_id));
+    },
+    enabled: open,
+  });
+
+  const toggleMember = useMutation({
+    mutationFn: async ({ userId, add }: { userId: string; add: boolean }) => {
+      if (add) {
+        const { error } = await supabase.from("project_members").insert({ project_id: projectId, user_id: userId });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("project_members").delete()
+          .eq("project_id", projectId).eq("user_id", userId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project-members", projectId] });
+      qc.invalidateQueries({ queryKey: ["project-assignable", projectId] });
+    },
+    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="border-border">
+          <Users className="size-4" /> Membres
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="glass-strong border-border max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="font-display">Membres du projet</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">Cochez les personnes participant au projet. Le responsable a automatiquement accès.</p>
+        <div className="rounded-lg border border-border divide-y divide-border/50 max-h-96 overflow-y-auto">
+          {people?.map((p) => {
+            const isManager = project?.manager_id === p.id;
+            const checked = isManager || (currentMembers?.has(p.id) ?? false);
+            return (
+              <label key={p.id} className={`flex items-center gap-3 px-3 py-2 ${isManager ? "opacity-60" : "cursor-pointer hover:bg-muted/30"}`}>
+                <Checkbox
+                  checked={checked}
+                  disabled={isManager || toggleMember.isPending}
+                  onCheckedChange={(v) => toggleMember.mutate({ userId: p.id, add: !!v })}
+                />
+                <span className="text-sm flex-1">{p.full_name || p.email}</span>
+                {isManager && <span className="text-xs text-primary">Responsable</span>}
+              </label>
+            );
+          })}
+        </div>
       </DialogContent>
     </Dialog>
   );
