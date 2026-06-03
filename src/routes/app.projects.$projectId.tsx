@@ -292,10 +292,23 @@ function CreateTaskDialog({ projectId, userId }: { projectId: string; userId: st
   const qc = useQueryClient();
 
   const { data: members } = useQuery({
-    queryKey: ["all-members"],
+    queryKey: ["project-assignable", projectId],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("id, full_name, email");
-      return data ?? [];
+      // Project manager
+      const { data: proj } = await supabase
+        .from("projects").select("manager_id").eq("id", projectId).single();
+      // Project members
+      const { data: pm } = await supabase
+        .from("project_members").select("user_id").eq("project_id", projectId);
+
+      const ids = new Set<string>();
+      if (proj?.manager_id) ids.add(proj.manager_id);
+      (pm ?? []).forEach((r) => ids.add(r.user_id));
+      if (ids.size === 0) return [];
+
+      const { data: profiles } = await supabase
+        .from("profiles").select("id, full_name, email").in("id", [...ids]);
+      return profiles ?? [];
     },
     enabled: open,
   });
