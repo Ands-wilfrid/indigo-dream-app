@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, ListChecks, GripVertical, Wifi, WifiOff, CloudUpload } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Plus, ListChecks, GripVertical, Wifi, WifiOff, CloudUpload, Users, Calendar } from "lucide-react";
 import {
   cacheGet,
   cacheSet,
