@@ -271,6 +271,12 @@ function TaskCard({ task, dragging }: { task: any; dragging?: boolean }) {
                 {(task.assignee as any).full_name || (task.assignee as any).email}
               </span>
             )}
+            {task.due_date && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar className="size-3" />
+                {new Date(task.due_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+              </span>
+            )}
           </div>
         </div>
       </div>
