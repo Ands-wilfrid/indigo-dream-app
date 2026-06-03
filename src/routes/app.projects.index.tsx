@@ -127,10 +127,11 @@ function StatusBadge({ status }: { status: string }) {
 
 function CreateProjectDialog({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const qc = useQueryClient();
 
-  const { data: managers } = useQuery({
-    queryKey: ["managers-and-members"],
+  const { data: people } = useQuery({
+    queryKey: ["all-people"],
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("id, full_name, email");
       return data ?? [];
@@ -143,26 +144,50 @@ function CreateProjectDialog({ userId }: { userId: string }) {
     defaultValues: { name: "", description: "", status: "active", manager_id: null, due_date: null },
   });
 
+  const managerId = form.watch("manager_id");
+
   const mutation = useMutation({
     mutationFn: async (values: ProjectInput) => {
-      const { error } = await supabase.from("projects").insert({
-        name: values.name,
-        description: values.description || null,
-        status: values.status,
-        manager_id: values.manager_id || null,
-        due_date: values.due_date || null,
-        created_by: userId,
-      });
+      const { data: created, error } = await supabase
+        .from("projects")
+        .insert({
+          name: values.name,
+          description: values.description || null,
+          status: values.status,
+          manager_id: values.manager_id || null,
+          due_date: values.due_date || null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      // Add selected members (exclude the manager, who already has access)
+      const memberIds = [...selectedMembers].filter((id) => id !== values.manager_id);
+      if (created && memberIds.length > 0) {
+        const rows = memberIds.map((uid) => ({ project_id: created.id, user_id: uid }));
+        const { error: mErr } = await supabase.from("project_members").insert(rows);
+        if (mErr) throw mErr;
+      }
     },
     onSuccess: () => {
       toast.success("Projet créé");
       qc.invalidateQueries({ queryKey: ["projects"] });
       form.reset();
+      setSelectedMembers(new Set());
       setOpen(false);
     },
     onError: (e: any) => toast.error("Erreur", { description: e.message }),
   });
+
+  const toggleMember = (id: string) => {
+    setSelectedMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -171,7 +196,7 @@ function CreateProjectDialog({ userId }: { userId: string }) {
           <Plus className="size-4" /> Nouveau projet
         </Button>
       </DialogTrigger>
-      <DialogContent className="glass-strong border-border max-w-lg">
+      <DialogContent className="glass-strong border-border max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">Nouveau projet</DialogTitle>
         </DialogHeader>
@@ -192,7 +217,7 @@ function CreateProjectDialog({ userId }: { userId: string }) {
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="Aucun" /></SelectTrigger>
                 <SelectContent className="glass-strong">
                   <SelectItem value="none">Aucun</SelectItem>
-                  {managers?.map((m) => (
+                  {people?.map((m) => (
                     <SelectItem key={m.id} value={m.id}>{m.full_name || m.email}</SelectItem>
                   ))}
                 </SelectContent>
@@ -201,6 +226,27 @@ function CreateProjectDialog({ userId }: { userId: string }) {
             <div>
               <Label htmlFor="due_date">Échéance</Label>
               <Input id="due_date" type="date" {...form.register("due_date")} className="mt-1.5" />
+            </div>
+          </div>
+          <div>
+            <Label>Membres participants</Label>
+            <p className="text-xs text-muted-foreground mb-2 mt-1">Sélectionnez les personnes qui participeront au projet.</p>
+            <div className="rounded-lg border border-border max-h-48 overflow-y-auto divide-y divide-border/50">
+              {people && people.length > 0 ? (
+                people
+                  .filter((p) => p.id !== managerId)
+                  .map((p) => (
+                    <label key={p.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30">
+                      <Checkbox
+                        checked={selectedMembers.has(p.id)}
+                        onCheckedChange={() => toggleMember(p.id)}
+                      />
+                      <span className="text-sm">{p.full_name || p.email}</span>
+                    </label>
+                  ))
+              ) : (
+                <p className="text-xs text-muted-foreground p-3">Chargement…</p>
+              )}
             </div>
           </div>
           <Button type="submit" disabled={mutation.isPending} className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground">
