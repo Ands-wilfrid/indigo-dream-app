@@ -174,8 +174,9 @@ function ProjectDetail() {
           <h1 className="font-display text-3xl md:text-4xl font-bold">{project?.name ?? "…"}</h1>
           {project?.description && <p className="text-muted-foreground mt-2 max-w-2xl">{project.description}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <SyncBadge online={online} queueSize={queueSize} />
+          {canManage && project && <ManageMembersDialog projectId={projectId} />}
           {canManage && project && <CreateTaskDialog projectId={projectId} userId={user!.id} />}
         </div>
       </div>
