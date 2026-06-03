@@ -400,3 +400,85 @@ function CreateTaskDialog({ projectId, userId }: { projectId: string; userId: st
     </Dialog>
   );
 }
+
+function ManageMembersDialog({ projectId }: { projectId: string }) {
+  const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
+
+  const { data: project } = useQuery({
+    queryKey: ["project-manager", projectId],
+    queryFn: async () => {
+      const { data } = await supabase.from("projects").select("manager_id").eq("id", projectId).single();
+      return data;
+    },
+    enabled: open,
+  });
+
+  const { data: people } = useQuery({
+    queryKey: ["all-profiles-for-members"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("id, full_name, email");
+      return data ?? [];
+    },
+    enabled: open,
+  });
+
+  const { data: currentMembers } = useQuery({
+    queryKey: ["project-members", projectId],
+    queryFn: async () => {
+      const { data } = await supabase.from("project_members").select("user_id").eq("project_id", projectId);
+      return new Set((data ?? []).map((r) => r.user_id));
+    },
+    enabled: open,
+  });
+
+  const toggleMember = useMutation({
+    mutationFn: async ({ userId, add }: { userId: string; add: boolean }) => {
+      if (add) {
+        const { error } = await supabase.from("project_members").insert({ project_id: projectId, user_id: userId });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("project_members").delete()
+          .eq("project_id", projectId).eq("user_id", userId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project-members", projectId] });
+      qc.invalidateQueries({ queryKey: ["project-assignable", projectId] });
+    },
+    onError: (e: any) => toast.error("Erreur", { description: e.message }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="border-border">
+          <Users className="size-4" /> Membres
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="glass-strong border-border max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="font-display">Membres du projet</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">Cochez les personnes participant au projet. Le responsable a automatiquement accès.</p>
+        <div className="rounded-lg border border-border divide-y divide-border/50 max-h-96 overflow-y-auto">
+          {people?.map((p) => {
+            const isManager = project?.manager_id === p.id;
+            const checked = isManager || (currentMembers?.has(p.id) ?? false);
+            return (
+              <label key={p.id} className={`flex items-center gap-3 px-3 py-2 ${isManager ? "opacity-60" : "cursor-pointer hover:bg-muted/30"}`}>
+                <Checkbox
+                  checked={checked}
+                  disabled={isManager || toggleMember.isPending}
+                  onCheckedChange={(v) => toggleMember.mutate({ userId: p.id, add: !!v })}
+                />
+                <span className="text-sm flex-1">{p.full_name || p.email}</span>
+                {isManager && <span className="text-xs text-primary">Responsable</span>}
+              </label>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
